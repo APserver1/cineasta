@@ -235,44 +235,48 @@ const ConceptTab = ({ project, onUpdateProject, readOnly = false, registerFlush 
   }, [project, onUpdateProject, readOnly]);
 
   return (
-    <div className="flex h-full w-full">
-      {/* Left Pane: Concept Map (50%) */}
-      <div className="w-1/2 h-full border-r border-gray-200 bg-gray-50 relative" data-pins-surface="concept-map" data-pins-type="reactflow">
-        <ConceptMap 
-          formData={formData} 
-          projectTitle={project.title} 
-          onChange={(updates, immediate) => handleFormChange({ ...formData, ...updates }, immediate)}
-          onEditNode={handleEditNode}
-          externalNodeUpdate={formData._lastUpdate}
-          onInit={setRfInstance}
-          onViewportChange={handleViewportChange}
-          readOnly={readOnly}
-        />
-        {readOnly && (
-            <div className="absolute top-4 right-4 bg-gray-100/80 backdrop-blur text-gray-500 text-xs px-2 py-1 rounded border border-gray-200 pointer-events-none z-10">
-                Solo Lectura
-            </div>
-        )}
+    <div className="flex flex-col h-full w-full">
+      <div className="flex flex-1 min-h-0">
+        <div className="w-1/2 min-h-0 border-r border-gray-200 bg-gray-50 relative" data-pins-surface="concept-map" data-pins-type="reactflow">
+          <ConceptMap 
+            formData={formData} 
+            projectTitle={project.title} 
+            onChange={(updates, immediate) => handleFormChange({ ...formData, ...updates }, immediate)}
+            onEditNode={handleEditNode}
+            externalNodeUpdate={formData._lastUpdate}
+            onInit={setRfInstance}
+            onViewportChange={handleViewportChange}
+            readOnly={readOnly}
+          />
+          {readOnly && (
+              <div className="absolute top-4 right-4 bg-gray-100/80 backdrop-blur text-gray-500 text-xs px-2 py-1 rounded border border-gray-200 pointer-events-none z-10">
+                  Solo Lectura
+              </div>
+          )}
+        </div>
+
+        <div className="w-1/2 min-h-0 overflow-y-auto bg-white p-8" data-pins-surface="concept-form" data-pins-type="scroll">
+          {editingNodeId && editingNodeData ? (
+              <NodeEditor 
+                  node={editingNodeData} 
+                  onUpdate={handleNodeUpdate}
+                  onClose={closeEditor}
+                  readOnly={readOnly}
+              />
+          ) : (
+              <div className="max-w-2xl mx-auto">
+                <div className="flex items-center justify-between mb-6">
+                  <h2 className="text-2xl font-bold text-gray-900">Desarrollo del Concepto</h2>
+                  {saving && <span className="text-xs text-gray-400 animate-pulse">Guardando...</span>}
+                </div>
+                <ConceptForm data={formData} onChange={handleFormChange} readOnly={readOnly} />
+              </div>
+          )}
+        </div>
       </div>
 
-      {/* Right Pane: Form Inputs or Node Editor (50%) */}
-      <div className="w-1/2 h-full overflow-y-auto bg-white p-8" data-pins-surface="concept-form" data-pins-type="scroll">
-        {editingNodeId && editingNodeData ? (
-            <NodeEditor 
-                node={editingNodeData} 
-                onUpdate={handleNodeUpdate}
-                onClose={closeEditor}
-                readOnly={readOnly}
-            />
-        ) : (
-            <div className="max-w-2xl mx-auto">
-              <div className="flex items-center justify-between mb-6">
-                <h2 className="text-2xl font-bold text-gray-900">Desarrollo del Concepto</h2>
-                {saving && <span className="text-xs text-gray-400 animate-pulse">Guardando...</span>}
-              </div>
-              <ConceptForm data={formData} onChange={handleFormChange} readOnly={readOnly} />
-            </div>
-        )}
+      <div className="shrink-0 border-t border-gray-200 bg-white">
+        <div className="h-[80px] w-full" data-adsterra-slot="concepto-inferior" />
       </div>
     </div>
   );
