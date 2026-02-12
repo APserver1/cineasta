@@ -3,6 +3,9 @@ import { ZoomIn, ZoomOut, Plus, Trash2, ChevronLeft, ChevronRight, PenTool, Eras
 import { supabase } from '../../lib/supabaseClient';
 import StoryboardExportModal from './StoryboardExportModal';
 
+const ADSTERRA_NATIVE_CONTAINER_ID = 'container-20a02c2e254f8f71908f748a0dc22c3d';
+const ADSTERRA_NATIVE_SCRIPT_SRC = 'https://pl28698636.effectivegatecpm.com/20a02c2e254f8f71908f748a0dc22c3d/invoke.js';
+
 // Constants for Script Elements (copied from GuionTab)
 const ELEMENT_TYPES = {
     SCENE: 'scene',
@@ -153,10 +156,35 @@ const ScriptViewer = ({ pages, selectedSceneId, onSelectScene }) => {
             </div>
 
             <div className="shrink-0 border-t border-gray-200 bg-white">
-                <div className="h-[80px] w-full" data-adsterra-slot="storyboard-referencia-inferior" />
+                <div className="h-[250px] w-full flex items-center justify-center overflow-hidden" data-adsterra-slot="storyboard-referencia-inferior">
+                    <AdsterraNativeBanner containerId={ADSTERRA_NATIVE_CONTAINER_ID} scriptSrc={ADSTERRA_NATIVE_SCRIPT_SRC} />
+                </div>
             </div>
         </div>
     );
+};
+
+const AdsterraNativeBanner = ({ containerId, scriptSrc }) => {
+    const mountRef = useRef(null);
+
+    useEffect(() => {
+        const host = mountRef.current;
+        if (!host) return;
+
+        host.replaceChildren();
+
+        const container = document.createElement('div');
+        container.id = containerId;
+        host.appendChild(container);
+
+        const script = document.createElement('script');
+        script.async = true;
+        script.setAttribute('data-cfasync', 'false');
+        script.src = scriptSrc;
+        host.appendChild(script);
+    }, [containerId, scriptSrc]);
+
+    return <div ref={mountRef} className="w-full h-full flex items-center justify-center" />;
 };
 
 // Canvas Component
