@@ -151,6 +151,10 @@ const ScriptViewer = ({ pages, selectedSceneId, onSelectScene }) => {
                     ))}
                 </div>
             </div>
+
+            <div className="shrink-0 border-t border-gray-200 bg-white">
+                <div className="h-[80px] w-full" data-adsterra-slot="storyboard-referencia-inferior" />
+            </div>
         </div>
     );
 };
