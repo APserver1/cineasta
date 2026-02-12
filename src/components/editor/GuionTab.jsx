@@ -1535,9 +1535,10 @@ const GuionTab = ({ project, onUpdateProject, readOnly = false }) => {
   };
 
   return (
-    <div className="flex h-full w-full bg-gray-100 overflow-hidden font-sans">
+    <div className="flex flex-col h-full w-full bg-gray-100 overflow-hidden font-sans">
+      <div className="flex flex-1 min-h-0">
         {/* LEFT SIDE: Script Editor (Pages) */}
-        <div className="w-1/2 h-full flex flex-col border-r border-gray-300 relative">
+        <div className="w-1/2 min-h-0 flex flex-col border-r border-gray-300 relative">
             {/* Toolbar */}
             <div className="bg-white border-b border-gray-200 p-2 flex items-center justify-between shadow-sm z-20 sticky top-0">
                  <div className="flex flex-wrap gap-1 items-center">
@@ -1838,7 +1839,7 @@ const GuionTab = ({ project, onUpdateProject, readOnly = false }) => {
         </div>
 
         {/* RIGHT SIDE: Viewer (Tratamiento/Escaleta/Concepto) */}
-        <div className="w-1/2 h-full flex flex-col bg-gray-50">
+        <div className="w-1/2 min-h-0 flex flex-col bg-gray-50">
             {/* Viewer Switcher Header */}
             <div className="bg-white border-b border-gray-200 p-2 flex items-center justify-between shadow-sm z-10">
                 <div className="flex bg-gray-100 p-1 rounded-lg">
@@ -1897,6 +1898,11 @@ const GuionTab = ({ project, onUpdateProject, readOnly = false }) => {
                 )}
             </div>
         </div>
+      </div>
+
+      <div className="shrink-0 border-t border-gray-200 bg-white">
+        <div className="h-[80px] w-full" data-adsterra-slot="guion-inferior" />
+      </div>
     </div>
   );
 };
