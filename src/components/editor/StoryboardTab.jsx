@@ -196,24 +196,33 @@ const AdsterraNativeBanner = ({ containerId, scriptSrc }) => {
         const host = mountRef.current;
         if (!host) return;
 
-        const isConnected =
-            containerRef.current &&
-            containerRef.current.isConnected &&
-            host.contains(containerRef.current);
-        const hasRenderableContent =
-            isConnected &&
-            containerRef.current.childElementCount > 0 &&
-            containerRef.current.scrollHeight > 0;
+        host.replaceChildren();
+        wrapperRef.current = null;
+        containerRef.current = null;
+        clonesRef.current = null;
 
-        const ensureWrapper = () => {
-            if (!wrapperRef.current) {
-                const wrapper = document.createElement('div');
-                wrapper.style.width = '100%';
-                wrapperRef.current = wrapper;
-                host.appendChild(wrapper);
-            }
-            return wrapperRef.current;
-        };
+        const wrapper = document.createElement('div');
+        wrapper.style.width = '100%';
+        wrapperRef.current = wrapper;
+        host.appendChild(wrapper);
+
+        const container = document.createElement('div');
+        container.id = containerId;
+        container.style.width = '100%';
+        containerRef.current = container;
+        wrapper.appendChild(container);
+
+        const clonesHost = document.createElement('div');
+        clonesHost.style.width = '100%';
+        clonesRef.current = clonesHost;
+        wrapper.appendChild(clonesHost);
+
+        const script = document.createElement('script');
+        script.async = true;
+        script.setAttribute('data-cfasync', 'false');
+        const cacheBuster = `v=${Date.now()}`;
+        script.src = scriptSrc.includes('?') ? `${scriptSrc}&${cacheBuster}` : `${scriptSrc}?${cacheBuster}`;
+        wrapper.appendChild(script);
 
         const applyScale = () => {
             if (!wrapperRef.current || !containerRef.current || !mountRef.current) return;
@@ -250,53 +259,20 @@ const AdsterraNativeBanner = ({ containerId, scriptSrc }) => {
             }
         };
 
-        if (!hasRenderableContent) {
-            host.replaceChildren();
-            wrapperRef.current = null;
-            containerRef.current = null;
-            clonesRef.current = null;
-
-            const wrapper = ensureWrapper();
-
-            const container = document.createElement('div');
-            container.id = containerId;
-            container.style.width = '100%';
-            containerRef.current = container;
-            wrapper.appendChild(container);
-
-            const clonesHost = document.createElement('div');
-            clonesHost.style.width = '100%';
-            clonesRef.current = clonesHost;
-            wrapper.appendChild(clonesHost);
-
-            const script = document.createElement('script');
-            script.async = true;
-            script.setAttribute('data-cfasync', 'false');
-            const cacheBuster = `v=${Date.now()}`;
-            script.src = scriptSrc.includes('?') ? `${scriptSrc}&${cacheBuster}` : `${scriptSrc}?${cacheBuster}`;
-            wrapper.appendChild(script);
-        }
-
-        const observer = containerRef.current
-            ? new MutationObserver(() => {
-                requestAnimationFrame(() => {
-                    applyScale();
-                    updateClones();
-                });
-            })
-            : null;
-
-        if (containerRef.current && observer) {
-            observer.observe(containerRef.current, { childList: true, subtree: true });
+        const observer = new MutationObserver(() => {
             requestAnimationFrame(() => {
                 applyScale();
                 updateClones();
             });
-        }
+        });
 
-        return () => {
-            if (observer) observer.disconnect();
-        };
+        observer.observe(container, { childList: true, subtree: true });
+        requestAnimationFrame(() => {
+            applyScale();
+            updateClones();
+        });
+
+        return () => observer.disconnect();
     }, [containerId, scriptSrc, refreshKey]);
 
     return <div ref={mountRef} className="w-full h-full flex flex-col items-start justify-start overflow-hidden" />;
