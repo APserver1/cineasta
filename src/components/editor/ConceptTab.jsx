@@ -279,7 +279,7 @@ const ConceptTab = ({ project, onUpdateProject, readOnly = false, registerFlush 
       </div>
 
       <div className="shrink-0 border-t border-gray-200 bg-white">
-        <div className="h-[250px] w-full flex items-center justify-center overflow-hidden" data-adsterra-slot="concepto-inferior">
+        <div className="h-[120px] w-full flex items-center justify-center overflow-hidden" data-adsterra-slot="concepto-inferior">
           <AdsterraNativeBanner containerId={ADSTERRA_NATIVE_CONTAINER_ID} scriptSrc={ADSTERRA_NATIVE_SCRIPT_SRC} />
         </div>
       </div>
@@ -289,6 +289,26 @@ const ConceptTab = ({ project, onUpdateProject, readOnly = false, registerFlush 
 
 const AdsterraNativeBanner = ({ containerId, scriptSrc }) => {
   const mountRef = useRef(null);
+  const containerRef = useRef(null);
+  const clonesRef = useRef(null);
+  const [refreshKey, setRefreshKey] = useState(0);
+
+  useEffect(() => {
+    const handleVisibility = () => {
+      if (document.visibilityState === 'visible') {
+        setRefreshKey((prev) => prev + 1);
+      }
+    };
+    const handleFocus = () => setRefreshKey((prev) => prev + 1);
+
+    document.addEventListener('visibilitychange', handleVisibility);
+    window.addEventListener('focus', handleFocus);
+
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibility);
+      window.removeEventListener('focus', handleFocus);
+    };
+  }, []);
 
   useEffect(() => {
     const host = mountRef.current;
@@ -298,16 +318,50 @@ const AdsterraNativeBanner = ({ containerId, scriptSrc }) => {
 
     const container = document.createElement('div');
     container.id = containerId;
+    container.style.width = '100%';
+    containerRef.current = container;
     host.appendChild(container);
+
+    const clonesHost = document.createElement('div');
+    clonesHost.style.width = '100%';
+    clonesRef.current = clonesHost;
+    host.appendChild(clonesHost);
 
     const script = document.createElement('script');
     script.async = true;
     script.setAttribute('data-cfasync', 'false');
     script.src = scriptSrc;
     host.appendChild(script);
-  }, [containerId, scriptSrc]);
 
-  return <div ref={mountRef} className="w-full h-full flex items-center justify-center" />;
+    const updateClones = () => {
+      if (!containerRef.current || !clonesRef.current || !mountRef.current) return;
+      const html = containerRef.current.innerHTML;
+      if (!html) {
+        clonesRef.current.replaceChildren();
+        return;
+      }
+      const rowHeight = containerRef.current.offsetHeight || 1;
+      const hostHeight = mountRef.current.clientHeight || 0;
+      const clonesNeeded = Math.max(0, Math.ceil(hostHeight / rowHeight) - 1);
+      clonesRef.current.replaceChildren();
+      for (let i = 0; i < clonesNeeded; i += 1) {
+        const clone = document.createElement('div');
+        clone.innerHTML = html;
+        clonesRef.current.appendChild(clone);
+      }
+    };
+
+    const observer = new MutationObserver(() => {
+      requestAnimationFrame(updateClones);
+    });
+
+    observer.observe(container, { childList: true, subtree: true });
+    requestAnimationFrame(updateClones);
+
+    return () => observer.disconnect();
+  }, [containerId, scriptSrc, refreshKey]);
+
+  return <div ref={mountRef} className="w-full h-full flex flex-col items-start justify-start overflow-hidden" />;
 };
 
 export default ConceptTab;
