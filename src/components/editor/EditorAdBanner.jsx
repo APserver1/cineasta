@@ -8,20 +8,31 @@ const EditorAdBanner = ({ height = 120 }) => {
   const wrapperRef = useRef(null);
   const containerRef = useRef(null);
   const [refreshKey, setRefreshKey] = useState(0);
+  const lastReloadAtRef = useRef(0);
+  const retryCountRef = useRef(0);
+  const retryTimersRef = useRef([]);
 
   useEffect(() => {
-    const requestReload = () => setRefreshKey((prev) => prev + 1);
+    const requestReload = () => {
+      const now = Date.now();
+      if (now - lastReloadAtRef.current < 250) return;
+      lastReloadAtRef.current = now;
+      retryCountRef.current = 0;
+      setRefreshKey((prev) => prev + 1);
+    };
     const handleVisibility = () => {
       if (document.visibilityState === 'visible') requestReload();
     };
 
     document.addEventListener('visibilitychange', handleVisibility);
     window.addEventListener('focus', requestReload);
+    window.addEventListener('blur', requestReload);
     window.addEventListener('pageshow', requestReload);
 
     return () => {
       document.removeEventListener('visibilitychange', handleVisibility);
       window.removeEventListener('focus', requestReload);
+      window.removeEventListener('blur', requestReload);
       window.removeEventListener('pageshow', requestReload);
     };
   }, []);
@@ -29,6 +40,9 @@ const EditorAdBanner = ({ height = 120 }) => {
   useEffect(() => {
     const host = mountRef.current;
     if (!host) return;
+
+    retryTimersRef.current.forEach((t) => clearTimeout(t));
+    retryTimersRef.current = [];
 
     host.replaceChildren();
     wrapperRef.current = null;
@@ -77,9 +91,29 @@ const EditorAdBanner = ({ height = 120 }) => {
     window.addEventListener('resize', applyScale);
     requestAnimationFrame(applyScale);
 
+    const isRenderable = () => {
+      const cur = containerRef.current;
+      if (!cur) return false;
+      if (cur.childElementCount > 0) return true;
+      if (cur.innerHTML && cur.innerHTML.trim().length > 0) return true;
+      return false;
+    };
+
+    const scheduleRetry = () => {
+      if (retryCountRef.current >= 3) return;
+      if (isRenderable()) return;
+      retryCountRef.current += 1;
+      setRefreshKey((prev) => prev + 1);
+    };
+
+    retryTimersRef.current.push(setTimeout(scheduleRetry, 600));
+    retryTimersRef.current.push(setTimeout(scheduleRetry, 1800));
+
     return () => {
       observer.disconnect();
       window.removeEventListener('resize', applyScale);
+      retryTimersRef.current.forEach((t) => clearTimeout(t));
+      retryTimersRef.current = [];
     };
   }, [refreshKey]);
 
