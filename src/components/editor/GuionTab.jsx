@@ -5,9 +5,6 @@ import ConceptMap from './ConceptMap';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
 
-const ADSTERRA_NATIVE_CONTAINER_ID = 'container-20a02c2e254f8f71908f748a0dc22c3d';
-const ADSTERRA_NATIVE_SCRIPT_SRC = 'https://pl28698636.effectivegatecpm.com/20a02c2e254f8f71908f748a0dc22c3d/invoke.js';
-
 // Constants for Script Elements
 const ELEMENT_TYPES = {
     SCENE: 'scene',       // Escena (CTRL+1)
@@ -1903,129 +1900,8 @@ const GuionTab = ({ project, onUpdateProject, readOnly = false }) => {
         </div>
       </div>
 
-      <div className="shrink-0 border-t border-gray-200 bg-white">
-        <div className="h-[120px] w-full flex items-center justify-center overflow-hidden" data-adsterra-slot="guion-inferior">
-          <AdsterraNativeBanner containerId={ADSTERRA_NATIVE_CONTAINER_ID} scriptSrc={ADSTERRA_NATIVE_SCRIPT_SRC} />
-        </div>
-      </div>
     </div>
   );
-};
-
-const AdsterraNativeBanner = ({ containerId, scriptSrc }) => {
-  const mountRef = useRef(null);
-  const containerRef = useRef(null);
-  const clonesRef = useRef(null);
-  const wrapperRef = useRef(null);
-  const [refreshKey, setRefreshKey] = useState(0);
-
-  useEffect(() => {
-    const requestReload = () => setRefreshKey((prev) => prev + 1);
-    const handleVisibility = () => {
-      if (document.visibilityState === 'visible') {
-        requestReload();
-      }
-    };
-    const handleFocus = () => requestReload();
-    const handlePageShow = () => requestReload();
-
-    document.addEventListener('visibilitychange', handleVisibility);
-    window.addEventListener('focus', handleFocus);
-    window.addEventListener('pageshow', handlePageShow);
-
-    return () => {
-      document.removeEventListener('visibilitychange', handleVisibility);
-      window.removeEventListener('focus', handleFocus);
-      window.removeEventListener('pageshow', handlePageShow);
-    };
-  }, []);
-
-  useEffect(() => {
-    const host = mountRef.current;
-    if (!host) return;
-
-    host.replaceChildren();
-    wrapperRef.current = null;
-    containerRef.current = null;
-    clonesRef.current = null;
-
-    const wrapper = document.createElement('div');
-    wrapper.style.width = '100%';
-    wrapperRef.current = wrapper;
-    host.appendChild(wrapper);
-
-    const container = document.createElement('div');
-    container.id = containerId;
-    container.style.width = '100%';
-    containerRef.current = container;
-    wrapper.appendChild(container);
-
-    const clonesHost = document.createElement('div');
-    clonesHost.style.width = '100%';
-    clonesRef.current = clonesHost;
-    wrapper.appendChild(clonesHost);
-
-    const script = document.createElement('script');
-    script.async = true;
-    script.setAttribute('data-cfasync', 'false');
-    const cacheBuster = `v=${Date.now()}`;
-    script.src = scriptSrc.includes('?') ? `${scriptSrc}&${cacheBuster}` : `${scriptSrc}?${cacheBuster}`;
-    wrapper.appendChild(script);
-
-    const applyScale = () => {
-      if (!wrapperRef.current || !containerRef.current || !mountRef.current) return;
-      const contentHeight =
-        containerRef.current.scrollHeight || containerRef.current.offsetHeight;
-      if (!contentHeight) return;
-      const hostHeight = mountRef.current.clientHeight || 0;
-      if (!hostHeight) return;
-      const scale = Math.min(1, hostHeight / contentHeight);
-      wrapperRef.current.style.transform = `scale(${scale})`;
-      wrapperRef.current.style.transformOrigin = 'top left';
-      wrapperRef.current.style.width = `${100 / scale}%`;
-    };
-
-    const updateClones = () => {
-      if (!containerRef.current || !clonesRef.current || !mountRef.current) return;
-      const html = containerRef.current.innerHTML;
-      if (!html) {
-        clonesRef.current.replaceChildren();
-        return;
-      }
-      const contentHeight =
-        containerRef.current.scrollHeight || containerRef.current.offsetHeight || 1;
-      const hostHeight = mountRef.current.clientHeight || 0;
-      if (!hostHeight) return;
-      const scale = Math.min(1, hostHeight / contentHeight);
-      const effectiveRowHeight = contentHeight * scale;
-      const clonesNeeded = Math.max(0, Math.ceil(hostHeight / effectiveRowHeight) - 1);
-      clonesRef.current.replaceChildren();
-      for (let i = 0; i < clonesNeeded; i += 1) {
-        const clone = document.createElement('div');
-        clone.innerHTML = html;
-        clonesRef.current.appendChild(clone);
-      }
-    };
-
-    const observer = new MutationObserver(() => {
-      requestAnimationFrame(() => {
-        applyScale();
-        updateClones();
-      });
-    });
-
-    observer.observe(container, { childList: true, subtree: true });
-    requestAnimationFrame(() => {
-      applyScale();
-      updateClones();
-    });
-
-    return () => {
-      observer.disconnect();
-    };
-  }, [containerId, scriptSrc, refreshKey]);
-
-  return <div ref={mountRef} className="w-full h-full flex flex-col items-start justify-start overflow-hidden" />;
 };
 
 const ToolbarButton = ({ label, shortcut, active, onClick, icon, showShortcut }) => (
