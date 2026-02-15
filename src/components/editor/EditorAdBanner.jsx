@@ -1,24 +1,21 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 
 const ADSTERRA_NATIVE_CONTAINER_ID = 'container-20a02c2e254f8f71908f748a0dc22c3d';
 const ADSTERRA_NATIVE_SCRIPT_SRC = 'https://pl28698636.effectivegatecpm.com/20a02c2e254f8f71908f748a0dc22c3d/invoke.js';
 
 const EditorAdBanner = ({ height = 120 }) => {
-  const mountRef = useRef(null);
-  const wrapperRef = useRef(null);
-  const containerRef = useRef(null);
-  const [refreshKey, setRefreshKey] = useState(0);
+  const iframeRef = useRef(null);
+  const cleanupObserversRef = useRef(null);
+  const [frameKey, setFrameKey] = useState(0);
+  const [scale, setScale] = useState(1);
   const lastReloadAtRef = useRef(0);
-  const retryCountRef = useRef(0);
-  const retryTimersRef = useRef([]);
 
   useEffect(() => {
     const requestReload = () => {
       const now = Date.now();
       if (now - lastReloadAtRef.current < 250) return;
       lastReloadAtRef.current = now;
-      retryCountRef.current = 0;
-      setRefreshKey((prev) => prev + 1);
+      setFrameKey((prev) => prev + 1);
     };
     const handleVisibility = () => {
       if (document.visibilityState === 'visible') requestReload();
@@ -26,100 +23,110 @@ const EditorAdBanner = ({ height = 120 }) => {
 
     document.addEventListener('visibilitychange', handleVisibility);
     window.addEventListener('focus', requestReload);
-    window.addEventListener('blur', requestReload);
     window.addEventListener('pageshow', requestReload);
 
     return () => {
       document.removeEventListener('visibilitychange', handleVisibility);
       window.removeEventListener('focus', requestReload);
-      window.removeEventListener('blur', requestReload);
       window.removeEventListener('pageshow', requestReload);
     };
   }, []);
 
-  useEffect(() => {
-    const host = mountRef.current;
-    if (!host) return;
+  const srcDoc = useMemo(() => {
+    const cacheBuster = `${Date.now()}-${frameKey}`;
+    const scriptSrc = ADSTERRA_NATIVE_SCRIPT_SRC.includes('?')
+      ? `${ADSTERRA_NATIVE_SCRIPT_SRC}&v=${cacheBuster}`
+      : `${ADSTERRA_NATIVE_SCRIPT_SRC}?v=${cacheBuster}`;
 
-    retryTimersRef.current.forEach((t) => clearTimeout(t));
-    retryTimersRef.current = [];
+    return `<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <style>
+      html, body { margin: 0; padding: 0; overflow: hidden; background: #fff; height: ${height}px; }
+      #wrap { width: 100%; height: ${height}px; overflow: hidden; }
+      #${ADSTERRA_NATIVE_CONTAINER_ID} { width: 100%; }
+    </style>
+  </head>
+  <body>
+    <div id="wrap">
+      <div id="${ADSTERRA_NATIVE_CONTAINER_ID}"></div>
+    </div>
+    <script async data-cfasync="false" src="${scriptSrc}"></script>
+  </body>
+</html>`;
+  }, [frameKey, height]);
 
-    host.replaceChildren();
-    wrapperRef.current = null;
-    containerRef.current = null;
+  const handleFrameLoad = () => {
+    if (cleanupObserversRef.current) cleanupObserversRef.current();
+    cleanupObserversRef.current = null;
 
-    const wrapper = document.createElement('div');
-    wrapper.style.width = '100%';
-    wrapper.style.height = '100%';
-    wrapperRef.current = wrapper;
-    host.appendChild(wrapper);
+    const iframe = iframeRef.current;
+    const doc = iframe?.contentDocument;
+    const body = doc?.body;
+    const root = doc?.documentElement;
+    if (!iframe || !doc || !body || !root) return;
 
-    const container = document.createElement('div');
-    container.id = ADSTERRA_NATIVE_CONTAINER_ID;
-    container.style.width = '100%';
-    containerRef.current = container;
-    wrapper.appendChild(container);
-
-    const script = document.createElement('script');
-    script.async = true;
-    script.setAttribute('data-cfasync', 'false');
-    const cacheBuster = `v=${Date.now()}-${refreshKey}`;
-    script.src = ADSTERRA_NATIVE_SCRIPT_SRC.includes('?')
-      ? `${ADSTERRA_NATIVE_SCRIPT_SRC}&${cacheBuster}`
-      : `${ADSTERRA_NATIVE_SCRIPT_SRC}?${cacheBuster}`;
-    wrapper.appendChild(script);
-
-    const applyScale = () => {
-      const curHost = mountRef.current;
-      const curWrapper = wrapperRef.current;
-      const curContainer = containerRef.current;
-      if (!curHost || !curWrapper || !curContainer) return;
-      const hostHeight = curHost.clientHeight || 0;
-      const contentHeight = curContainer.scrollHeight || curContainer.offsetHeight || 0;
-      if (!hostHeight || !contentHeight) return;
-      const scale = Math.min(1, hostHeight / contentHeight);
-      curWrapper.style.transform = `scale(${scale})`;
-      curWrapper.style.transformOrigin = 'top left';
-      curWrapper.style.width = `${100 / scale}%`;
+    const updateScale = () => {
+      const curDoc = iframeRef.current?.contentDocument;
+      const curBody = curDoc?.body;
+      const curRoot = curDoc?.documentElement;
+      if (!curBody || !curRoot) return;
+      const contentHeight = Math.max(
+        curBody.scrollHeight || 0,
+        curBody.offsetHeight || 0,
+        curRoot.scrollHeight || 0,
+        curRoot.offsetHeight || 0
+      );
+      if (!contentHeight) return;
+      setScale(Math.min(1, height / contentHeight));
     };
 
-    const observer = new MutationObserver(() => {
-      requestAnimationFrame(applyScale);
+    updateScale();
+
+    const mutationObserver = new MutationObserver(() => {
+      requestAnimationFrame(updateScale);
     });
+    mutationObserver.observe(body, { childList: true, subtree: true, attributes: true });
 
-    observer.observe(container, { childList: true, subtree: true });
-    window.addEventListener('resize', applyScale);
-    requestAnimationFrame(applyScale);
+    const resizeObserver = window.ResizeObserver ? new ResizeObserver(() => updateScale()) : null;
+    if (resizeObserver) resizeObserver.observe(body);
 
-    const isRenderable = () => {
-      const cur = containerRef.current;
-      if (!cur) return false;
-      if (cur.childElementCount > 0) return true;
-      if (cur.innerHTML && cur.innerHTML.trim().length > 0) return true;
-      return false;
+    const timers = [
+      setTimeout(updateScale, 250),
+      setTimeout(updateScale, 700),
+      setTimeout(updateScale, 1400),
+      setTimeout(updateScale, 2200)
+    ];
+
+    cleanupObserversRef.current = () => {
+      mutationObserver.disconnect();
+      if (resizeObserver) resizeObserver.disconnect();
+      timers.forEach((t) => clearTimeout(t));
     };
-
-    const scheduleRetry = () => {
-      if (retryCountRef.current >= 3) return;
-      if (isRenderable()) return;
-      retryCountRef.current += 1;
-      setRefreshKey((prev) => prev + 1);
-    };
-
-    retryTimersRef.current.push(setTimeout(scheduleRetry, 600));
-    retryTimersRef.current.push(setTimeout(scheduleRetry, 1800));
-
-    return () => {
-      observer.disconnect();
-      window.removeEventListener('resize', applyScale);
-      retryTimersRef.current.forEach((t) => clearTimeout(t));
-      retryTimersRef.current = [];
-    };
-  }, [refreshKey]);
+  };
 
   return (
     <div className="shrink-0 border-t border-gray-200 bg-white">
-      <div className="w-full overflow-hidden" style={{ height }} ref={mountRef} />
+      <div className="w-full overflow-hidden" style={{ height }}>
+        <iframe
+          key={frameKey}
+          ref={iframeRef}
+          title="Editor Ads"
+          className="border-0"
+          style={{
+            width: `${100 / scale}%`,
+            height: `${height / scale}px`,
+            transform: `scale(${scale})`,
+            transformOrigin: 'top left'
+          }}
+          sandbox="allow-scripts allow-forms allow-popups allow-popups-to-escape-sandbox allow-same-origin allow-top-navigation-by-user-activation"
+          referrerPolicy="no-referrer-when-downgrade"
+          srcDoc={srcDoc}
+          onLoad={handleFrameLoad}
+        />
+      </div>
     </div>
   );
 };
