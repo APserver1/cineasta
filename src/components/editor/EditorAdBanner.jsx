@@ -4,6 +4,7 @@ const ADSTERRA_NATIVE_CONTAINER_ID = 'container-20a02c2e254f8f71908f748a0dc22c3d
 const ADSTERRA_NATIVE_SCRIPT_SRC = 'https://pl28698636.effectivegatecpm.com/20a02c2e254f8f71908f748a0dc22c3d/invoke.js';
 
 const EditorAdBanner = ({ height = 120 }) => {
+  const hostRef = useRef(null);
   const iframeRef = useRef(null);
   const cleanupObserversRef = useRef(null);
   const [frameKey, setFrameKey] = useState(0);
@@ -44,8 +45,8 @@ const EditorAdBanner = ({ height = 120 }) => {
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <style>
-      html, body { margin: 0; padding: 0; overflow: hidden; background: #fff; height: ${height}px; }
-      #wrap { width: 100%; height: ${height}px; overflow: hidden; }
+      html, body { margin: 0; padding: 0; overflow: hidden; background: #fff; }
+      #wrap { width: 100%; overflow: hidden; }
       #${ADSTERRA_NATIVE_CONTAINER_ID} { width: 100%; }
     </style>
   </head>
@@ -70,17 +71,34 @@ const EditorAdBanner = ({ height = 120 }) => {
 
     const updateScale = () => {
       const curDoc = iframeRef.current?.contentDocument;
-      const curBody = curDoc?.body;
-      const curRoot = curDoc?.documentElement;
-      if (!curBody || !curRoot) return;
+      const curBody = curDoc?.body || null;
+      const curRoot = curDoc?.documentElement || null;
+      const curHost = hostRef.current || null;
+      if (!curBody || !curRoot || !curHost) return;
+
+      const contentEl = curDoc.getElementById(ADSTERRA_NATIVE_CONTAINER_ID) || curBody;
       const contentHeight = Math.max(
+        contentEl.scrollHeight || 0,
+        contentEl.offsetHeight || 0,
         curBody.scrollHeight || 0,
         curBody.offsetHeight || 0,
         curRoot.scrollHeight || 0,
         curRoot.offsetHeight || 0
       );
-      if (!contentHeight) return;
-      setScale(Math.min(1, height / contentHeight));
+      const contentWidth = Math.max(
+        contentEl.scrollWidth || 0,
+        contentEl.offsetWidth || 0,
+        curBody.scrollWidth || 0,
+        curBody.offsetWidth || 0,
+        curRoot.scrollWidth || 0,
+        curRoot.offsetWidth || 0
+      );
+
+      const hostWidth = curHost.clientWidth || 0;
+      if (!contentHeight || !contentWidth || !hostWidth) return;
+
+      const nextScale = Math.min(1, height / contentHeight, hostWidth / contentWidth);
+      setScale(nextScale);
     };
 
     updateScale();
@@ -100,16 +118,22 @@ const EditorAdBanner = ({ height = 120 }) => {
       setTimeout(updateScale, 2200)
     ];
 
+    const hostResizeObserver = window.ResizeObserver
+      ? new ResizeObserver(() => updateScale())
+      : null;
+    if (hostResizeObserver && hostRef.current) hostResizeObserver.observe(hostRef.current);
+
     cleanupObserversRef.current = () => {
       mutationObserver.disconnect();
       if (resizeObserver) resizeObserver.disconnect();
+      if (hostResizeObserver) hostResizeObserver.disconnect();
       timers.forEach((t) => clearTimeout(t));
     };
   };
 
   return (
     <div className="shrink-0 border-t border-gray-200 bg-white">
-      <div className="w-full overflow-hidden" style={{ height }}>
+      <div ref={hostRef} className="w-full overflow-hidden" style={{ height }}>
         <iframe
           key={frameKey}
           ref={iframeRef}
