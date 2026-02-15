@@ -10,6 +10,7 @@ import GuionTab from '../components/editor/GuionTab';
 import StoryboardTab from '../components/editor/StoryboardTab';
 import TimelineTab from '../components/editor/TimelineTab';
 import ArtTab from '../components/editor/ArtTab';
+import EditorAdBanner from '../components/editor/EditorAdBanner';
 import { deleteProjectResources } from '../utils/storageHelpers';
 import { motion, AnimatePresence } from 'framer-motion';
 import postitTexture from '../textures/postit.png';
@@ -973,7 +974,7 @@ const Editor = () => {
       </header>
 
       {/* Main Content */}
-      <main ref={mainRef} className="flex-1 overflow-hidden relative h-[calc(100vh-64px)]">
+      <main ref={mainRef} className="flex-1 overflow-hidden relative">
         {canViewPinsForTab(activeTab) && (
           <div
             className={`absolute inset-0 z-40 ${pinsMode && canEditPinsForTab(activeTab) ? 'pointer-events-auto' : 'pointer-events-none'}`}
@@ -1089,6 +1090,8 @@ const Editor = () => {
         {activeTab === 'arte' && <ArtTab project={project} readOnly={!canEdit('arte')} />}
         {activeTab === 'timeline' && <TimelineTab project={project} onUpdateProject={updateProjectState} readOnly={!canEdit('timeline')} />}
       </main>
+
+      <EditorAdBanner height={120} />
 
       {/* Rename Modal */}
       {isRenaming && (
